@@ -87,6 +87,7 @@ def train(validate_model, predict_result, debug):
     X = vectorizer.fit_transform(features)
 
     if validate_model is True:
+        print('Validate the model...')
         validate(X, y)
 
     if predict_result is True:
