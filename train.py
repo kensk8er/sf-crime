@@ -1,4 +1,5 @@
 import csv
+import click
 from scipy.sparse import hstack
 from sklearn.cross_validation import train_test_split
 from sklearn.ensemble import RandomForestClassifier
@@ -60,7 +61,7 @@ def load(file_path, labeled):
     return (y, day_of_weeks, pd_districts, addresses) if labeled is True else (day_of_weeks, pd_districts, addresses)
 
 
-def train():
+def train(validate_model, predict_result):
     (y, day_of_weeks, pd_districts, addresses) = load('data/train.csv', labeled=True)
 
     print('Vectorizing DayOfWeek...')
@@ -78,8 +79,13 @@ def train():
     print('Concatenating features...')
     X = hstack([X_day_of_weeks, X_pd_districts, X_addresses])
 
-    # validate(X, y)
-    classifier = fit(X, y)
+    if validate_model is True:
+        validate(X, y)
+
+    if predict_result is True:
+        classifier = fit(X, y)
+    else:
+        classifier = None
 
     return classifier, day_of_weeks_encoder, pd_districts_encoder, addresses_encoder
 
@@ -148,8 +154,19 @@ def output(P, class_indices, file_path, class_prior_weight):
             csv_writer.writerow(row)
 
 
+@click.command()
+@click.option('--validate_model', prompt='Validate the model? (y/n)', default='n')
+@click.option('--predict_result', prompt='Predict the submission results? (y/n)', default='n')
+def main(validate_model, predict_result):
+    validate_model = True if validate_model == 'y' else False
+    predict_result = True if predict_result == 'y' else False
+
+    (classifier, day_of_weeks_encoder, pd_districts_encoder, addresses_encoder) = train(validate_model, predict_result)
+
+    if predict_result is True:
+        (P, class_indices) = predict(classifier, day_of_weeks_encoder, pd_districts_encoder, addresses_encoder)
+        output(P, class_indices, 'results/submission.csv', class_prior_weight=0.5)
+
+
 if __name__ == '__main__':
-    # TODO: Find out why submission.csv doens't have enough number of rows
-    (classifier, day_of_weeks_encoder, pd_districts_encoder, addresses_encoder) = train()
-    (P, class_indices) = predict(classifier, day_of_weeks_encoder, pd_districts_encoder, addresses_encoder)
-    output(P, class_indices, 'results/submission.csv', class_prior_weight=0.5)
+    main()
