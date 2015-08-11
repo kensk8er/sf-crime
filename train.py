@@ -88,13 +88,13 @@ def predict(classifier, day_of_weeks_encoder, pd_districts_encoder, addresses_en
     (day_of_weeks, pd_districts, addresses) = load('data/test.csv', labeled=False)
 
     print('Vectorizing DayOfWeek...')
-    X_day_of_weeks = day_of_weeks_encoder.fit_transform(day_of_weeks)
+    X_day_of_weeks = day_of_weeks_encoder.transform(day_of_weeks)
 
     print('Vectorizing PdDistrict...')
-    X_pd_districts = pd_districts_encoder.fit_transform(pd_districts)
+    X_pd_districts = pd_districts_encoder.transform(pd_districts)
 
     print('Vectorizing Address...')
-    X_addresses = addresses_encoder.fit_transform(addresses)
+    X_addresses = addresses_encoder.transform(addresses)
 
     print('Concatenating features...')
     X = hstack([X_day_of_weeks, X_pd_districts, X_addresses])
