@@ -36,7 +36,9 @@ def parse_time(date_str):
     year = date.year
     return hour, day, month, year
 
+
 _address_pattern = re.compile(r"[A-Z][A-Z ]+")
+
 
 def load(file_path, labeled, debug=False):
     if labeled is True:
