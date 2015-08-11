@@ -39,7 +39,7 @@ def load(file_path, labeled):
     addresses = []
 
     print('Loading {} ...'.format(file_path))
-    with open('data/train.csv') as train_file:
+    with open(file_path) as train_file:
         csv_reader = csv.reader(train_file)
         header = csv_reader.next()
 
