@@ -108,14 +108,14 @@ def predict(classifier, day_of_weeks_encoder, pd_districts_encoder, addresses_en
 
 class_statistics = {'ARSON': 1513., 'ASSAULT': 76876., 'BAD CHECKS': 406., 'BRIBERY': 289., 'BURGLARY': 36755.,
                     'DISORDERLY CONDUCT': 4320., 'DRIVING UNDER THE INFLUENCE': 2268., 'DRUG/NARCOTIC': 53971.,
-                    'EMBEZZLEMENT': 1166., 'EXTORTION': 256., 'FAMILY OFFENSES': 491., 'FORGERY/COUNTERFEITING': 10609.,
-                    'FRAUD': 16679., 'GAMBLING': 146., 'KIDNAPPING': 2341., 'LARCENY/THEFT': 174900.,
-                    'LIQUOR LAWS': 1903., 'LOITERING': 1225., 'MISSING PERSON': 25989., 'NON-CRIMINAL': 92304.,
-                    'OTHER OFFENSES': 126182., 'PORNOGRAPHY/OBSCENE MAT': 22., 'PROSTITUTION': 7484.,
-                    'RECOVERED VEHICLE': 3138., 'ROBBERY': 23000., 'RUNAWAY': 1946., 'SECONDARY CODES': 9985.,
-                    'SEX OFFENSES FORCIBLE': 4388., 'SEX OFFENSES NON FORCIBLE': 148., 'STOLEN PROPERTY': 4540.,
-                    'SUICIDE': 508., 'SUSPICIOUS OCC': 31414., 'TREA': 6., 'TRESPASS': 7326., 'VANDALISM': 44725.,
-                    'VEHICLE THEFT': 53781., 'WARRANTS': 42214., 'WEAPON LAWS': 8555., }
+                    'DRUNKENNESS': 4280, 'EMBEZZLEMENT': 1166., 'EXTORTION': 256., 'FAMILY OFFENSES': 491.,
+                    'FORGERY/COUNTERFEITING': 10609., 'FRAUD': 16679., 'GAMBLING': 146., 'KIDNAPPING': 2341.,
+                    'LARCENY/THEFT': 174900., 'LIQUOR LAWS': 1903., 'LOITERING': 1225., 'MISSING PERSON': 25989.,
+                    'NON-CRIMINAL': 92304., 'OTHER OFFENSES': 126182., 'PORNOGRAPHY/OBSCENE MAT': 22.,
+                    'PROSTITUTION': 7484., 'RECOVERED VEHICLE': 3138., 'ROBBERY': 23000., 'RUNAWAY': 1946.,
+                    'SECONDARY CODES': 9985., 'SEX OFFENSES FORCIBLE': 4388., 'SEX OFFENSES NON FORCIBLE': 148.,
+                    'STOLEN PROPERTY': 4540., 'SUICIDE': 508., 'SUSPICIOUS OCC': 31414., 'TREA': 6., 'TRESPASS': 7326.,
+                    'VANDALISM': 44725., 'VEHICLE THEFT': 53781., 'WARRANTS': 42214., 'WEAPON LAWS': 8555., }
 class_prior = {class_: statistic / sum(class_statistics.values()) for class_, statistic in class_statistics.items()}
 
 
