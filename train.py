@@ -15,9 +15,7 @@ def validate(X, y):
     print('Split the data...')
     (X_train, X_valid, y_train, y_valid) = train_test_split(X, y, test_size=0.1, random_state=0)
 
-    print('Fit the classifier...')
-    classifier = LinearSVC()
-    classifier.fit(X_train, y_train)
+    classifier = fit(X_train, y_train)
 
     print('Predict the labels on validation set...')
     y_pred = classifier.predict(X_valid)
