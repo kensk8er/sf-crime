@@ -26,7 +26,7 @@ def fit(X, y):
     print('Fit the classifier...')
     # classifier = LinearSVC()
     # classifier = SVC(kernel='linear', probability=True)
-    classifier = RandomForestClassifier(n_jobs=-1)
+    classifier = RandomForestClassifier(n_jobs=-1)  # TODO: Tune the parameters
     classifier.fit(X, y)
     return classifier
 
@@ -50,6 +50,12 @@ def load(file_path, labeled):
             day_of_weeks.append({datum['DayOfWeek']: 1})
             pd_districts.append({datum['PdDistrict']: 1})
             addresses.append({datum['Address']: 1})
+            # TODO: Integrate seasonal (or month) information
+            # TODO: Integrate time (or morning/noon/night) information
+            # TODO: Address needs to be treated together with PdDistrict? Probably ignore the street number. Maybe pick up capital letters only.
+            # TODO: Integrate latitude and longitude (RandomForest can utilize these without any feature engineering??)
+            # TODO: Integrate day information (maybe more theft on a day when pay day is likely to be)
+            # TODO: Integrate year information
 
     return (y, day_of_weeks, pd_districts, addresses) if labeled is True else (day_of_weeks, pd_districts, addresses)
 
@@ -121,6 +127,7 @@ def output(P, class_indices, file_path):
             row = [id_]
 
             for class_name in classes:
+                # TODO: Set the prior probability to avoid a large penalty (based on the distribution of the classes) and balance it between the predicted probability
                 try:
                     row.append(p[class_name2index[class_name]])
                 except KeyError:
@@ -130,6 +137,7 @@ def output(P, class_indices, file_path):
 
 
 if __name__ == '__main__':
+    # TODO: Find out why submission.csv doens't have enough number of rows
     (classifier, day_of_weeks_encoder, pd_districts_encoder, addresses_encoder) = train()
     (P, class_indices) = predict(classifier, day_of_weeks_encoder, pd_districts_encoder, addresses_encoder)
     output(P, class_indices, 'results/submission.csv')
