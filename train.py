@@ -62,7 +62,6 @@ def load(file_path, labeled, debug=False):
             feature = {
                 "DayOfWeek_{}".format(datum['DayOfWeek']): 1,
                 "PdDistrict_{}".format(datum['PdDistrict']): 1,
-                "Address_{}".format(_address_pattern.findall(datum['Address'])[0]): 1,
                 "hour_{}".format(hour): 1,
                 "day_{}".format(day): 1,
                 "month_{}".format(month): 1,
@@ -70,6 +69,9 @@ def load(file_path, labeled, debug=False):
                 "longitude": int(float(datum['X'])),
                 "latitude": int(float(datum['Y'])),
             }
+            address = _address_pattern.findall(datum['Address'])
+            if len(address) > 0:
+                feature["Address_{}".format(address[0])] = 1.
             features.append(feature)
 
     return (y, features) if labeled is True else features
