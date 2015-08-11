@@ -146,7 +146,8 @@ def output(P, class_indices, file_path, class_prior_weight):
 
             for class_name in classes:
                 try:
-                    row.append(p[class_name2index[class_name]] + class_prior[class_name] * class_prior_weight)
+                    row.append(p[class_name2index[class_name]] * (1 - class_prior_weight) + class_prior[
+                        class_name] * class_prior_weight)
                 except KeyError:
                     row.append(class_prior[class_name] * class_prior_weight)
 
