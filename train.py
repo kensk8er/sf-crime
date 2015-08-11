@@ -1,5 +1,6 @@
 import csv
 import click
+from datetime import datetime
 from scipy.sparse import hstack
 from sklearn.cross_validation import train_test_split
 from sklearn.ensemble import RandomForestClassifier
@@ -32,12 +33,19 @@ def fit(X, y):
     return classifier
 
 
-def load(file_path, labeled):
+def parse_time(date_str):
+    date = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+    hour = date.hour
+    day = date.day
+    month = date.month
+    year = date.year
+    return hour, day, month, year
+
+
+def load(file_path, labeled, debug=False):
     if labeled is True:
         y = []
-    day_of_weeks = []
-    pd_districts = []
-    addresses = []
+    features = []
 
     print('Loading {} ...'.format(file_path))
     with open(file_path) as train_file:
@@ -45,12 +53,23 @@ def load(file_path, labeled):
         header = csv_reader.next()
 
         for index, row in enumerate(csv_reader):
+            if debug is True and index == 10000:
+                break
+
             datum = {key: val for key, val in zip(header, row)}
+
             if labeled is True:
                 y.append(datum['Category'])
-            day_of_weeks.append({datum['DayOfWeek']: 1})
-            pd_districts.append({datum['PdDistrict']: 1})
-            addresses.append({datum['Address']: 1})
+
+            (hour, day, month, year) = parse_time(datum['Dates'])
+
+            feature = {
+                "DayOfWeek_{}".format(datum['DayOfWeek']): 1,
+                "PdDistrict_{}".format(datum['PdDistrict']): 1,
+                "Address_{}".format(datum['Address']): 1,
+            }
+            features.append(feature)
+
             # TODO: Integrate seasonal (or month) information
             # TODO: Integrate time (or morning/noon/night) information
             # TODO: Address needs to be treated together with PdDistrict? Probably ignore the street number. Maybe pick up capital letters only.
@@ -58,26 +77,15 @@ def load(file_path, labeled):
             # TODO: Integrate day information (maybe more theft on a day when pay day is likely to be)
             # TODO: Integrate year information
 
-    return (y, day_of_weeks, pd_districts, addresses) if labeled is True else (day_of_weeks, pd_districts, addresses)
+    return (y, features) if labeled is True else features
 
 
-def train(validate_model, predict_result):
-    (y, day_of_weeks, pd_districts, addresses) = load('data/train.csv', labeled=True)
+def train(validate_model, predict_result, debug):
+    (y, features) = load('data/train.csv', labeled=True, debug=debug)
 
-    print('Vectorizing DayOfWeek...')
-    day_of_weeks_encoder = DictVectorizer()
-    X_day_of_weeks = day_of_weeks_encoder.fit_transform(day_of_weeks)
-
-    print('Vectorizing PdDistrict...')
-    pd_districts_encoder = DictVectorizer()
-    X_pd_districts = pd_districts_encoder.fit_transform(pd_districts)
-
-    print('Vectorizing Address...')
-    addresses_encoder = DictVectorizer()
-    X_addresses = addresses_encoder.fit_transform(addresses)
-
-    print('Concatenating features...')
-    X = hstack([X_day_of_weeks, X_pd_districts, X_addresses])
+    print('Vectorizing features...')
+    vectorizer = DictVectorizer()
+    X = vectorizer.fit_transform(features)
 
     if validate_model is True:
         validate(X, y)
@@ -87,23 +95,14 @@ def train(validate_model, predict_result):
     else:
         classifier = None
 
-    return classifier, day_of_weeks_encoder, pd_districts_encoder, addresses_encoder
+    return classifier, vectorizer
 
 
-def predict(classifier, day_of_weeks_encoder, pd_districts_encoder, addresses_encoder):
-    (day_of_weeks, pd_districts, addresses) = load('data/test.csv', labeled=False)
+def predict(classifier, vectorizer):
+    features = load('data/test.csv', labeled=False)
 
-    print('Vectorizing DayOfWeek...')
-    X_day_of_weeks = day_of_weeks_encoder.transform(day_of_weeks)
-
-    print('Vectorizing PdDistrict...')
-    X_pd_districts = pd_districts_encoder.transform(pd_districts)
-
-    print('Vectorizing Address...')
-    X_addresses = addresses_encoder.transform(addresses)
-
-    print('Concatenating features...')
-    X = hstack([X_day_of_weeks, X_pd_districts, X_addresses])
+    print('Vectorizing features...')
+    X = vectorizer.transform(features)
 
     print('Predicting the y for test set...')
     P = classifier.predict_proba(X)
@@ -157,14 +156,16 @@ def output(P, class_indices, file_path, class_prior_weight):
 @click.command()
 @click.option('--validate_model', prompt='Validate the model? (y/n)', default='n')
 @click.option('--predict_result', prompt='Predict the submission results? (y/n)', default='n')
-def main(validate_model, predict_result):
+@click.option('--debug', prompt='Run on debug mode? (y/n)', default='n')
+def main(validate_model, predict_result, debug):
     validate_model = True if validate_model == 'y' else False
     predict_result = True if predict_result == 'y' else False
+    debug = True if debug == 'y' else False
 
-    (classifier, day_of_weeks_encoder, pd_districts_encoder, addresses_encoder) = train(validate_model, predict_result)
+    (classifier, vectorizer) = train(validate_model, predict_result, debug)
 
     if predict_result is True:
-        (P, class_indices) = predict(classifier, day_of_weeks_encoder, pd_districts_encoder, addresses_encoder)
+        (P, class_indices) = predict(classifier, vectorizer)
         output(P, class_indices, 'results/submission.csv', class_prior_weight=0.5)
 
 
