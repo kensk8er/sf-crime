@@ -1,4 +1,5 @@
 import csv
+import re
 import click
 from datetime import datetime
 from sklearn.cross_validation import train_test_split
@@ -22,8 +23,6 @@ def validate(X, y):
 
 def fit(X, y):
     print('Fit the classifier...')
-    # classifier = LinearSVC()
-    # classifier = SVC(kernel='linear', probability=True)
     classifier = RandomForestClassifier(n_jobs=-1)  # TODO: Tune the parameters
     classifier.fit(X, y)
     return classifier
@@ -37,6 +36,7 @@ def parse_time(date_str):
     year = date.year
     return hour, day, month, year
 
+_address_pattern = re.compile(r"[A-Z][A-Z ]+")
 
 def load(file_path, labeled, debug=False):
     if labeled is True:
@@ -62,16 +62,15 @@ def load(file_path, labeled, debug=False):
             feature = {
                 "DayOfWeek_{}".format(datum['DayOfWeek']): 1,
                 "PdDistrict_{}".format(datum['PdDistrict']): 1,
-                "Address_{}".format(datum['Address']): 1,
+                "Address_{}".format(_address_pattern.findall(datum['Address'])[0]): 1,
+                "hour_{}".format(hour): 1,
+                "day_{}".format(day): 1,
+                "month_{}".format(month): 1,
+                "year_{}".format(year): 1,
+                "longitude": int(float(datum['X'])),
+                "latitude": int(float(datum['Y'])),
             }
             features.append(feature)
-
-            # TODO: Integrate seasonal (or month) information
-            # TODO: Integrate time (or morning/noon/night) information
-            # TODO: Address needs to be treated together with PdDistrict? Probably ignore the street number. Maybe pick up capital letters only.
-            # TODO: Integrate latitude and longitude (RandomForest can utilize these without any feature engineering??)
-            # TODO: Integrate day information (maybe more theft on a day when pay day is likely to be)
-            # TODO: Integrate year information
 
     return (y, features) if labeled is True else features
 
