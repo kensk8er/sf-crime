@@ -1,9 +1,10 @@
 import csv
 from scipy.sparse import hstack
 from sklearn.cross_validation import train_test_split
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.metrics import classification_report
-from sklearn.svm import LinearSVC
+from sklearn.svm import LinearSVC, SVC
 
 __author__ = 'kensk8er'
 
@@ -23,7 +24,9 @@ def validate(X, y):
 
 def fit(X, y):
     print('Fit the classifier...')
-    classifier = LinearSVC()
+    # classifier = LinearSVC()
+    # classifier = SVC(kernel='linear', probability=True)
+    classifier = RandomForestClassifier(n_jobs=-1)
     classifier.fit(X, y)
     return classifier
 
@@ -91,12 +94,13 @@ def predict(classifier, day_of_weeks_encoder, pd_districts_encoder, addresses_en
     X = hstack([X_day_of_weeks, X_pd_districts, X_addresses])
 
     print('Predicting the y for test set...')
-    y = classifier.predict(X)
+    P = classifier.predict_proba(X)
+    class_indices = classifier.classes_
 
-    return y
+    return P, class_indices
 
 
-def output(y, file_path):
+def output(P, class_indices, file_path):
     classes = ['ARSON', 'ASSAULT', 'BAD CHECKS', 'BRIBERY', 'BURGLARY', 'DISORDERLY CONDUCT',
                'DRIVING UNDER THE INFLUENCE', 'DRUG/NARCOTIC', 'DRUNKENNESS', 'EMBEZZLEMENT', 'EXTORTION',
                'FAMILY OFFENSES', 'FORGERY/COUNTERFEITING', 'FRAUD', 'GAMBLING', 'KIDNAPPING', 'LARCENY/THEFT',
@@ -105,19 +109,21 @@ def output(y, file_path):
                'SEX OFFENSES FORCIBLE', 'SEX OFFENSES NON FORCIBLE', 'STOLEN PROPERTY', 'SUICIDE', 'SUSPICIOUS OCC',
                'TREA', 'TRESPASS', 'VANDALISM', 'VEHICLE THEFT', 'WARRANTS', 'WEAPON LAWS']
 
+    class_name2index = {class_name: index for index, class_name in enumerate(class_indices)}
+
     with open(file_path, 'w') as output_file:
         csv_writer = csv.writer(output_file)
 
         header = ['Id'] + classes
         csv_writer.writerow(header)
 
-        for id_, pred_class in enumerate(y):
+        for id_, p in enumerate(P):
             row = [id_]
 
-            for class_ in classes:
-                if class_ == pred_class:
-                    row.append(1)
-                else:
+            for class_name in classes:
+                try:
+                    row.append(p[class_name2index[class_name]])
+                except KeyError:
                     row.append(0)
 
             csv_writer.writerow(row)
@@ -125,5 +131,5 @@ def output(y, file_path):
 
 if __name__ == '__main__':
     (classifier, day_of_weeks_encoder, pd_districts_encoder, addresses_encoder) = train()
-    y = predict(classifier, day_of_weeks_encoder, pd_districts_encoder, addresses_encoder)
-    output(y, 'results/submission.csv')
+    (P, class_indices) = predict(classifier, day_of_weeks_encoder, pd_districts_encoder, addresses_encoder)
+    output(P, class_indices, 'results/submission.csv')
