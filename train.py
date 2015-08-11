@@ -1,12 +1,10 @@
 import csv
 import click
 from datetime import datetime
-from scipy.sparse import hstack
 from sklearn.cross_validation import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.metrics import classification_report
-from sklearn.svm import LinearSVC, SVC
 
 __author__ = 'kensk8er'
 
