@@ -3,6 +3,7 @@ import csv
 import re
 import click
 from datetime import datetime
+import scipy
 from sklearn.cross_validation import train_test_split
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.linear_model import LogisticRegression
@@ -11,9 +12,43 @@ from sklearn.metrics import log_loss
 __author__ = 'kensk8er'
 
 
+def delete_row_csr(matrix, row_index):
+    if not isinstance(matrix, scipy.sparse.csr_matrix):
+        raise ValueError("works only for CSR format -- use .tocsr() first")
+    n = matrix.indptr[row_index + 1] - matrix.indptr[row_index]
+    if n > 0:
+        matrix.data[matrix.indptr[row_index]:-n] = matrix.data[matrix.indptr[row_index+1]:]
+        matrix.data = matrix.data[:-n]
+        matrix.indices[matrix.indptr[row_index]:-n] = matrix.indices[matrix.indptr[row_index+1]:]
+        matrix.indices = matrix.indices[:-n]
+    matrix.indptr[row_index:-1] = matrix.indptr[row_index + 1:]
+    matrix.indptr[row_index:] -= n
+    matrix.indptr = matrix.indptr[:-1]
+    matrix._shape = (matrix._shape[0] - 1, matrix._shape[1])
+    return matrix
+
+
+def align_classes(X_train, X_valid, y_train, y_valid):
+    train_classes = {class_ for class_ in y_train}
+    valid_classes = {class_ for class_ in y_valid}
+
+    for index in xrange(len(y_train) - 1, -1, -1):
+        if y_train[index] not in valid_classes:
+            X_train = delete_row_csr(X_train, index)
+            del y_train[index]
+
+    for index in xrange(len(y_valid) - 1, -1, -1):
+        if y_valid[index] not in train_classes:
+            X_valid = delete_row_csr(X_valid, index)
+            del y_valid[index]
+
+    return X_train, X_valid, y_train, y_valid
+
+
 def validate(X, y):
     print('Split the data...')
     (X_train, X_valid, y_train, y_valid) = train_test_split(X, y, test_size=0.1, random_state=0)
+    (X_train, X_valid, y_train, y_valid) = align_classes(X_train, X_valid, y_train, y_valid)
 
     classifier = fit(X_train, y_train)
 
@@ -43,12 +78,17 @@ def parse_time(date_str):
 _address_pattern = re.compile(r"[A-Z][A-Z ]+")
 
 
+def parse_coordinate(X, Y):
+    X = round(float(X), 1)
+    Y = round(float(Y), 1)
+    coordinate_feature = "{0}_{1}".format(X, Y)
+    return coordinate_feature
+
+
 def load(file_path, labeled, debug=False):
     if labeled is True:
         y = []
     features = []
-    class_count = defaultdict(int)
-    class_set = set()
 
     print('Loading {} ...'.format(file_path))
     with open(file_path) as train_file:
@@ -59,18 +99,13 @@ def load(file_path, labeled, debug=False):
             datum = {key: val for key, val in zip(header, row)}
 
             if debug is True and index > 10000:
-                if len(class_set) == len(class_statistics):
-                    break
-                if datum['Category'] in class_set:
-                    continue
+                break
 
             if labeled is True:
                 y.append(datum['Category'])
-                class_count[datum['Category']] += 1
-                if class_count[datum['Category']] > 50:
-                    class_set.add(datum['Category'])
 
             (hour, day, month, year) = parse_time(datum['Dates'])
+            # coordinate_feature = parse_coordinate(datum['X'], datum['Y'])
 
             feature = {
                 "DayOfWeek_{}".format(datum['DayOfWeek']): 1,
@@ -79,8 +114,9 @@ def load(file_path, labeled, debug=False):
                 "day_{}".format(day): 1,
                 "month_{}".format(month): 1,
                 "year_{}".format(year): 1,
-                # "longitude": int(float(datum['X'])),
-                # "latitude": int(float(datum['Y'])),
+                # "coordinate_{}".format(coordinate_feature): 1,
+                'X': datum['X'],
+                'Y': datum['Y'],
             }
             address = _address_pattern.findall(datum['Address'])
             if len(address) > 0:
@@ -149,19 +185,25 @@ def output(P, class_indices, file_path):
             row = [id_]
 
             for class_name in classes:
-                row.append(p[class_name2index[class_name]])
+                try:
+                    row.append(p[class_name2index[class_name]])
+                except KeyError:
+                    row.append(0)
 
             csv_writer.writerow(row)
 
 
-def add_prior_probability(P, class_indices, class_prior_weight=0.05):
+def add_prior_probability(P, class_indices, class_prior_weight=0.2):
     classes = class_statistics.keys()
     class_name2index = {class_name: index for index, class_name in enumerate(class_indices)}
 
     for sample_id, p in enumerate(P):
         for class_name in classes:
-            p[class_name2index[class_name]] = p[class_name2index[class_name]] * (1 - class_prior_weight) + \
-                                              class_prior[class_name] * class_prior_weight
+            try:
+                p[class_name2index[class_name]] = p[class_name2index[class_name]] * (1 - class_prior_weight) + \
+                                                  class_prior[class_name] * class_prior_weight
+            except KeyError:
+                pass
         P[sample_id] = p
 
     return P
