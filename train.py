@@ -1,11 +1,12 @@
+from collections import defaultdict
 import csv
 import re
 import click
 from datetime import datetime
 from sklearn.cross_validation import train_test_split
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction import DictVectorizer
-from sklearn.metrics import classification_report
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import log_loss
 
 __author__ = 'kensk8er'
 
@@ -17,13 +18,15 @@ def validate(X, y):
     classifier = fit(X_train, y_train)
 
     print('Predict the labels on validation set...')
-    y_pred = classifier.predict(X_valid)
-    print(classification_report(y_valid, y_pred))
+    y_pred = classifier.predict_proba(X_valid)
+    class_indices = classifier.classes_
+    y_pred = add_prior_probability(y_pred, class_indices)
+    print("Log Loss: {}".format(log_loss(y_valid, y_pred)))
 
 
 def fit(X, y):
     print('Fit the classifier...')
-    classifier = RandomForestClassifier(n_jobs=-1)  # TODO: Tune the parameters
+    classifier = LogisticRegression(penalty='l2', C=1.0)
     classifier.fit(X, y)
     return classifier
 
@@ -44,6 +47,8 @@ def load(file_path, labeled, debug=False):
     if labeled is True:
         y = []
     features = []
+    class_count = defaultdict(int)
+    class_set = set()
 
     print('Loading {} ...'.format(file_path))
     with open(file_path) as train_file:
@@ -51,13 +56,19 @@ def load(file_path, labeled, debug=False):
         header = csv_reader.next()
 
         for index, row in enumerate(csv_reader):
-            if debug is True and index == 10000:
-                break
-
             datum = {key: val for key, val in zip(header, row)}
+
+            if debug is True and index > 10000:
+                if len(class_set) == len(class_statistics):
+                    break
+                if datum['Category'] in class_set:
+                    continue
 
             if labeled is True:
                 y.append(datum['Category'])
+                class_count[datum['Category']] += 1
+                if class_count[datum['Category']] > 50:
+                    class_set.add(datum['Category'])
 
             (hour, day, month, year) = parse_time(datum['Dates'])
 
@@ -68,8 +79,8 @@ def load(file_path, labeled, debug=False):
                 "day_{}".format(day): 1,
                 "month_{}".format(month): 1,
                 "year_{}".format(year): 1,
-                "longitude": int(float(datum['X'])),
-                "latitude": int(float(datum['Y'])),
+                # "longitude": int(float(datum['X'])),
+                # "latitude": int(float(datum['Y'])),
             }
             address = _address_pattern.findall(datum['Address'])
             if len(address) > 0:
@@ -107,6 +118,7 @@ def predict(classifier, vectorizer):
     print('Predicting the y for test set...')
     P = classifier.predict_proba(X)
     class_indices = classifier.classes_
+    P = add_prior_probability(P, class_indices)
 
     return P, class_indices
 
@@ -124,20 +136,12 @@ class_statistics = {'ARSON': 1513., 'ASSAULT': 76876., 'BAD CHECKS': 406., 'BRIB
 class_prior = {class_: statistic / sum(class_statistics.values()) for class_, statistic in class_statistics.items()}
 
 
-def output(P, class_indices, file_path, class_prior_weight):
-    classes = ['ARSON', 'ASSAULT', 'BAD CHECKS', 'BRIBERY', 'BURGLARY', 'DISORDERLY CONDUCT',
-               'DRIVING UNDER THE INFLUENCE', 'DRUG/NARCOTIC', 'DRUNKENNESS', 'EMBEZZLEMENT', 'EXTORTION',
-               'FAMILY OFFENSES', 'FORGERY/COUNTERFEITING', 'FRAUD', 'GAMBLING', 'KIDNAPPING', 'LARCENY/THEFT',
-               'LIQUOR LAWS', 'LOITERING', 'MISSING PERSON', 'NON-CRIMINAL', 'OTHER OFFENSES',
-               'PORNOGRAPHY/OBSCENE MAT', 'PROSTITUTION', 'RECOVERED VEHICLE', 'ROBBERY', 'RUNAWAY', 'SECONDARY CODES',
-               'SEX OFFENSES FORCIBLE', 'SEX OFFENSES NON FORCIBLE', 'STOLEN PROPERTY', 'SUICIDE', 'SUSPICIOUS OCC',
-               'TREA', 'TRESPASS', 'VANDALISM', 'VEHICLE THEFT', 'WARRANTS', 'WEAPON LAWS']
-
-    class_name2index = {class_name: index for index, class_name in enumerate(class_indices)}
-
+def output(P, class_indices, file_path):
     with open(file_path, 'w') as output_file:
         csv_writer = csv.writer(output_file)
 
+        classes = class_statistics.keys()
+        class_name2index = {class_name: index for index, class_name in enumerate(class_indices)}
         header = ['Id'] + classes
         csv_writer.writerow(header)
 
@@ -145,13 +149,22 @@ def output(P, class_indices, file_path, class_prior_weight):
             row = [id_]
 
             for class_name in classes:
-                try:
-                    row.append(p[class_name2index[class_name]] * (1 - class_prior_weight) + class_prior[
-                        class_name] * class_prior_weight)
-                except KeyError:
-                    row.append(class_prior[class_name] * class_prior_weight)
+                row.append(p[class_name2index[class_name]])
 
             csv_writer.writerow(row)
+
+
+def add_prior_probability(P, class_indices, class_prior_weight=0.05):
+    classes = class_statistics.keys()
+    class_name2index = {class_name: index for index, class_name in enumerate(class_indices)}
+
+    for sample_id, p in enumerate(P):
+        for class_name in classes:
+            p[class_name2index[class_name]] = p[class_name2index[class_name]] * (1 - class_prior_weight) + \
+                                              class_prior[class_name] * class_prior_weight
+        P[sample_id] = p
+
+    return P
 
 
 @click.command()
@@ -167,7 +180,7 @@ def main(validate_model, predict_result, debug):
 
     if predict_result is True:
         (P, class_indices) = predict(classifier, vectorizer)
-        output(P, class_indices, 'results/submission.csv', class_prior_weight=0.5)
+        output(P, class_indices, 'results/submission.csv')
 
 
 if __name__ == '__main__':
