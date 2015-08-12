@@ -1,4 +1,3 @@
-from collections import defaultdict
 import csv
 import re
 import click
@@ -8,6 +7,7 @@ from sklearn.cross_validation import train_test_split
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import log_loss
+from sklearn.preprocessing import StandardScaler
 
 __author__ = 'kensk8er'
 
@@ -75,14 +75,33 @@ def parse_time(date_str):
     return hour, day, month, year
 
 
-_address_pattern = re.compile(r"[A-Z][A-Z ]+")
-
-
 def parse_coordinate(X, Y):
     X = round(float(X), 1)
     Y = round(float(Y), 1)
     coordinate_feature = "{0}_{1}".format(X, Y)
     return coordinate_feature
+
+
+def fit_standard_scaler(file_path):
+    X = []
+    Y = []
+    with open(file_path) as file_:
+        csv_reader = csv.reader(file_)
+        header = csv_reader.next()
+
+        for index, row in enumerate(csv_reader):
+            datum = {key: val for key, val in zip(header, row)}
+            X.append(float(datum['X']))
+            Y.append(float(datum['Y']))
+
+    x_scaler = StandardScaler(with_mean=True, with_std=True)
+    y_scaler = StandardScaler(with_mean=True, with_std=True)
+    x_scaler.fit(X)
+    y_scaler.fit(X)
+    return x_scaler, y_scaler
+
+
+address_pattern = re.compile(r"[A-Z][A-Z ]+")
 
 
 def load(file_path, labeled, debug=False):
@@ -91,8 +110,8 @@ def load(file_path, labeled, debug=False):
     features = []
 
     print('Loading {} ...'.format(file_path))
-    with open(file_path) as train_file:
-        csv_reader = csv.reader(train_file)
+    with open(file_path) as file_:
+        csv_reader = csv.reader(file_)
         header = csv_reader.next()
 
         for index, row in enumerate(csv_reader):
@@ -105,7 +124,6 @@ def load(file_path, labeled, debug=False):
                 y.append(datum['Category'])
 
             (hour, day, month, year) = parse_time(datum['Dates'])
-            # coordinate_feature = parse_coordinate(datum['X'], datum['Y'])
 
             feature = {
                 "DayOfWeek_{}".format(datum['DayOfWeek']): 1,
@@ -114,11 +132,10 @@ def load(file_path, labeled, debug=False):
                 "day_{}".format(day): 1,
                 "month_{}".format(month): 1,
                 "year_{}".format(year): 1,
-                # "coordinate_{}".format(coordinate_feature): 1,
-                'X': datum['X'],
-                'Y': datum['Y'],
+                "X_{}".format(datum['X']): 1,
+                "Y_{}".format(datum['Y']): 1,
             }
-            address = _address_pattern.findall(datum['Address'])
+            address = address_pattern.findall(datum['Address'])
             if len(address) > 0:
                 feature["Address_{}".format(address[0])] = 1.
             features.append(feature)
