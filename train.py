@@ -61,7 +61,7 @@ def validate(X, y):
 
 def fit(X, y):
     print('Fit the classifier...')
-    classifier = LogisticRegression(penalty='l2', C=1.0)
+    classifier = LogisticRegression(penalty='l2', C=0.8)
     classifier.fit(X, y)
     return classifier
 
@@ -117,7 +117,7 @@ def load(file_path, labeled, debug=False):
         for index, row in enumerate(csv_reader):
             datum = {key: val for key, val in zip(header, row)}
 
-            if debug is True and index > 10000:
+            if debug is True and index > 50000:
                 break
 
             if labeled is True:
@@ -134,6 +134,9 @@ def load(file_path, labeled, debug=False):
                 "year_{}".format(year): 1,
                 "X_{}".format(datum['X']): 1,
                 "Y_{}".format(datum['Y']): 1,
+                "DayOfWeek_{0}_hour_{1}".format(datum['DayOfWeek'], hour): 1,
+                "month_{0}_hour{1}".format(month, hour): 1,
+                "month_{0}_day_{1}".format(month, day): 1,
             }
             address = address_pattern.findall(datum['Address'])
             if len(address) > 0:
@@ -210,7 +213,7 @@ def output(P, class_indices, file_path):
             csv_writer.writerow(row)
 
 
-def add_prior_probability(P, class_indices, class_prior_weight=0.2):
+def add_prior_probability(P, class_indices, class_prior_weight=0.13):
     classes = class_statistics.keys()
     class_name2index = {class_name: index for index, class_name in enumerate(class_indices)}
 
