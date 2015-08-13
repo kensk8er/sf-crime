@@ -101,7 +101,7 @@ def fit_standard_scaler(file_path):
     return x_scaler, y_scaler
 
 
-address_pattern = re.compile(r"[A-Z][A-Z ]+")
+address_pattern = re.compile(r"((\d+)?[A-Z][A-Z ]+)")
 
 
 def load(file_path, labeled, debug=False):
@@ -137,7 +137,7 @@ def load(file_path, labeled, debug=False):
             }
             address = address_pattern.findall(datum['Address'])
             if len(address) > 0:
-                feature["Address_{}".format(address[0])] = 1.
+                feature["Address_{}".format(address[0][0])] = 1.
             features.append(feature)
 
     return (y, features) if labeled is True else features
